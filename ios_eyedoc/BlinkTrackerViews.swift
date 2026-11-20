@@ -5,6 +5,7 @@
 //  Created by Timur Uzakov on 20/11/26.
 //
 
+import AudioToolbox
 import SwiftUI
 
 struct BlinkMonitorView: View {
@@ -12,15 +13,14 @@ struct BlinkMonitorView: View {
     @State private var showSummarySheet = false
     @State private var rotationCounter = 0
     @State private var isBlinkShining = false
+    @State private var isRedGlowing = false
+    @State private var redGlowTask: Task<Void, Never>?
 
-    /// Shines red if the face is too close (≤ 0.4m) OR the last completed minute had fewer than 12 blinks.
-    private var shouldShineRed: Bool {
-        let lowLastMinuteCount = (cameraManager.lastCompletedMinuteBlinkCount ?? 12) < 12
-        return lowLastMinuteCount
-    }
+    private let lowBlinkThreshold = 12
+    private let redGlowDurationSeconds: TimeInterval = 5.0
 
     private var circleGlowColor: Color {
-        if shouldShineRed {
+        if isRedGlowing {
             return .red
         } else if isBlinkShining {
             return .cyan
@@ -32,20 +32,15 @@ struct BlinkMonitorView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                // Hidden/background orientation tracker so camera rotation still updates if preview is hidden
                 Color.clear
                     .frame(width: 0, height: 0)
                     .id(rotationCounter)
 
                 // Prominent Circle for Last Completed Minute Blink Count
                 VStack(spacing: 8) {
-//                    Text("Last Minute Blinks")
-//                        .font(.subheadline.weight(.medium))
-//                        .foregroundStyle(.secondary)
-
                     ZStack {
                         Circle()
-                            .fill(circleGlowColor.opacity(shouldShineRed || isBlinkShining ? 0.16 : 0.06))
+                            .fill(circleGlowColor.opacity(isRedGlowing || isBlinkShining ? 0.16 : 0.06))
 
                         Circle()
                             .stroke(circleGlowColor, lineWidth: 4)
@@ -54,12 +49,12 @@ struct BlinkMonitorView: View {
                             if let lastCount = cameraManager.lastCompletedMinuteBlinkCount {
                                 Text("\(lastCount)")
                                     .font(.system(size: 46, weight: .bold, design: .rounded))
-                                    .foregroundStyle(shouldShineRed ? .red : .primary)
+                                    .foregroundStyle(isRedGlowing ? .red : .primary)
                                     .contentTransition(.numericText())
                             } else {
                                 Text("--")
                                     .font(.system(size: 40, weight: .bold, design: .rounded))
-                                    .foregroundStyle(shouldShineRed ? .red : .secondary)
+                                    .foregroundStyle(.secondary)
                             }
 
                             Text("blinks/min")
@@ -70,17 +65,16 @@ struct BlinkMonitorView: View {
                     .frame(width: 256, height: 256)
                     .scaleEffect(isBlinkShining ? 1.07 : 1.0)
                     .shadow(
-                        color: shouldShineRed
+                        color: isRedGlowing
                             ? .red.opacity(0.85)
                             : (isBlinkShining ? .cyan.opacity(0.9) : .clear),
-                        radius: (shouldShineRed || isBlinkShining) ? 18 : 0
+                        radius: (isRedGlowing || isBlinkShining) ? 18 : 0
                     )
                     .animation(.easeOut(duration: 0.22), value: isBlinkShining)
-                    .animation(.easeInOut(duration: 0.3), value: shouldShineRed)
+                    .animation(.easeInOut(duration: 0.3), value: isRedGlowing)
 
-                    // Optional contextual warning pill when shining red
-                    if let lastCount = cameraManager.lastCompletedMinuteBlinkCount, lastCount < 12 {
-                        Label("Low blink rate last minute (< 12)", systemImage: "eye.trianglebadge.exclamationmark")
+                    if isRedGlowing, let lastCount = cameraManager.lastCompletedMinuteBlinkCount, lastCount < lowBlinkThreshold {
+                        Label("Low blink rate last minute (< \(lowBlinkThreshold))", systemImage: "eye.trianglebadge.exclamationmark")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.red)
                     }
@@ -88,10 +82,6 @@ struct BlinkMonitorView: View {
 
                 // Current Active Minute Counter
                 VStack(spacing: 4) {
-//                    Text("Current Minute")
-//                        .font(.caption)
-//                        .foregroundStyle(.secondary)
-
                     Text("\(cameraManager.currentMinuteBlinkCount)")
                         .font(.system(size: 32, weight: .semibold, design: .rounded))
                         .contentTransition(.numericText())
@@ -106,11 +96,6 @@ struct BlinkMonitorView: View {
                         cameraManager.resetCounter()
                     }
                     .buttonStyle(.bordered)
-
-//                    Button("Open Other View") {
-//                        showSummarySheet = true
-//                    }
-//                    .buttonStyle(.borderedProminent)
                 }
             }
             .padding()
@@ -119,11 +104,17 @@ struct BlinkMonitorView: View {
                 guard newValue > oldValue else { return }
                 triggerBlinkShine()
             }
+            .onChange(of: cameraManager.lastCompletedMinuteBlinkCount) { _, newValue in
+                guard let count = newValue, count < lowBlinkThreshold else { return }
+                triggerRedGlowForFiveSeconds()
+                playLowBlinkAlertSound()
+            }
             .onAppear {
                 cameraManager.startSession()
                 UIDevice.current.beginGeneratingDeviceOrientationNotifications()
             }
             .onDisappear {
+                redGlowTask?.cancel()
                 cameraManager.stopSession()
                 UIDevice.current.endGeneratingDeviceOrientationNotifications()
             }
@@ -141,6 +132,22 @@ struct BlinkMonitorView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             isBlinkShining = false
         }
+    }
+
+    private func triggerRedGlowForFiveSeconds() {
+        redGlowTask?.cancel()
+        isRedGlowing = true
+
+        redGlowTask = Task {
+            try? await Task.sleep(for: .seconds(redGlowDurationSeconds))
+            guard !Task.isCancelled else { return }
+            isRedGlowing = false
+        }
+    }
+
+    private func playLowBlinkAlertSound() {
+        // System alert tone; swap for AVAudioPlayer with a custom .wav/.mp3 in your bundle if preferred
+        AudioServicesPlaySystemSound(1005)
     }
 }
 
