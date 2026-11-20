@@ -1,9 +1,13 @@
 import SwiftUI
 
-@main struct MyApp: App {
+@main
+struct EyeDocApp: App {
+    @State private var cameraManager = BlinkCameraManager()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            BlinkMonitorView()
+                .environment(cameraManager)
         }
     }
 }
