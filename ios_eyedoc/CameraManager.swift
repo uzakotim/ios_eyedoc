@@ -33,7 +33,7 @@ final class BlinkCameraManager: NSObject {
     private var isEyeClosed = false
     private var closedFrameCount = 0
     private let minClosedFramesForBlink = 2
-    private let eyeClosedRatioThreshold: CGFloat = 0.25
+    private let eyeClosedRatioThreshold: CGFloat = 0.2
 
     // MARK: - Private Camera & Vision Properties
 

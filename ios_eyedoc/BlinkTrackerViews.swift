@@ -37,7 +37,7 @@ struct BlinkMonitorView: View {
                     .id(rotationCounter)
 
                 // Prominent Circle for Last Completed Minute Blink Count
-                VStack(spacing: 8) {
+                VStack(spacing: 24) {
                     ZStack {
                         Circle()
                             .fill(circleGlowColor.opacity(isRedGlowing || isBlinkShining ? 0.16 : 0.06))
@@ -62,7 +62,7 @@ struct BlinkMonitorView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .frame(width: 256, height: 256)
+                    .frame(width: 300, height: 300)
                     .scaleEffect(isBlinkShining ? 1.07 : 1.0)
                     .shadow(
                         color: isRedGlowing
@@ -73,11 +73,11 @@ struct BlinkMonitorView: View {
                     .animation(.easeOut(duration: 0.22), value: isBlinkShining)
                     .animation(.easeInOut(duration: 0.3), value: isRedGlowing)
 
-                    if isRedGlowing, let lastCount = cameraManager.lastCompletedMinuteBlinkCount, lastCount < lowBlinkThreshold {
+//                    if isRedGlowing, let lastCount = cameraManager.lastCompletedMinuteBlinkCount, lastCount < lowBlinkThreshold {
                         Label("Low blink rate last minute (< \(lowBlinkThreshold))", systemImage: "eye.trianglebadge.exclamationmark")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.red)
-                    }
+//                    }
                 }
 
                 // Current Active Minute Counter
