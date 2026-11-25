@@ -73,11 +73,11 @@ struct BlinkMonitorView: View {
                     .animation(.easeOut(duration: 0.22), value: isBlinkShining)
                     .animation(.easeInOut(duration: 0.3), value: isRedGlowing)
 
-//                    if isRedGlowing, let lastCount = cameraManager.lastCompletedMinuteBlinkCount, lastCount < lowBlinkThreshold {
+                    if isRedGlowing, let lastCount = cameraManager.lastCompletedMinuteBlinkCount, lastCount < lowBlinkThreshold {
                         Label("Low blink rate last minute (< \(lowBlinkThreshold))", systemImage: "eye.trianglebadge.exclamationmark")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.red)
-//                    }
+                    }
                 }
 
                 // Current Active Minute Counter
